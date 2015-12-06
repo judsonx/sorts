@@ -91,7 +91,7 @@ namespace
 class context_t
 {
 public:
-  context_t (std::vector <int> *a);
+  context_t ();
 
   std::mutex m_;
   std::condition_variable cv_;
@@ -100,7 +100,7 @@ public:
   bool reset_;
   size_t update_counter_;
   size_t render_counter_;
-  std::vector <int> *a_;
+  std::vector <int> a_;
   sort_id_t id_;
 
 private:
@@ -112,7 +112,7 @@ private:
 
 } // anonymous namespace
 
-context_t::context_t (std::vector <int> *a)
+context_t::context_t ()
 : m_ (),
   cv_ (),
   reset_cv_ (),
@@ -120,7 +120,7 @@ context_t::context_t (std::vector <int> *a)
   reset_ (false),
   update_counter_ (0),
   render_counter_ (1),
-  a_ (a),
+  a_ (N_ITEMS_TO_SORT),
   id_ (SID_UNSPECIFIED)
 {
 }
@@ -249,7 +249,7 @@ texture_cb_t::operator () (osg::StateAttribute *sa, osg::NodeVisitor *nv)
   }
 
   osg::Image *img = tex->getImage (0);
-  modify_image (img, ctx_->a_);
+  modify_image (img, &ctx_->a_);
   img->dirty ();
 
   ctx_->render_counter_ = ctx_->update_counter_;
@@ -349,7 +349,7 @@ create_texture ()
 static osg::Group *
 create_model (context_t *ctx)
 {
-  osg::ref_ptr <osg::Image> img (create_image (ctx->a_));
+  osg::ref_ptr <osg::Image> img (create_image (&ctx->a_));
   osg::ref_ptr <osg::Texture2D> texture (create_texture ());
   osg::ref_ptr <texture_cb_t> tcb (new texture_cb_t (ctx));
   texture->setUpdateCallback (tcb);
@@ -545,8 +545,8 @@ sort (context_t *ctx)
       std::unique_lock <std::mutex> lock (ctx->m_);
       if (ctx->stopped_)
         return;
-      for (size_t i = 0; i < ctx->a_->size (); ++i)
-        (*ctx->a_)[i] = get_rand ();
+      for (size_t i = 0; i < ctx->a_.size (); ++i)
+        ctx->a_[i] = get_rand ();
       ctx->reset_ = false;
       ctx->update_counter_ = 0;
       id = ctx->id_;
@@ -556,25 +556,25 @@ sort (context_t *ctx)
     switch (id)
     {
     case SID_INSERTION:
-      insertionsort (begin (*(ctx->a_)), end (*(ctx->a_)), ctx);
+      insertionsort (begin (ctx->a_), end (ctx->a_), ctx);
       break;
     case SID_BUBBLE:
-      bubblesort (begin (*(ctx->a_)), end (*(ctx->a_)), ctx);
+      bubblesort (begin (ctx->a_), end (ctx->a_), ctx);
       break;
     case SID_COMB:
-      combsort (begin (*(ctx->a_)), end (*(ctx->a_)), ctx);
+      combsort (begin (ctx->a_), end (ctx->a_), ctx);
       break;
     case SID_SELECTION:
-      selectionsort (begin (*(ctx->a_)), end (*(ctx->a_)), ctx);
+      selectionsort (begin (ctx->a_), end (ctx->a_), ctx);
       break;
     case SID_QUICK:
-      quicksort2 (begin (*(ctx->a_)), end (*(ctx->a_)), ctx);
+      quicksort2 (begin (ctx->a_), end (ctx->a_), ctx);
       break;
     case SID_UNSPECIFIED:
     default:
       {
         std::unique_lock <std::mutex> lock (ctx->m_);
-        std::sort (begin (*(ctx->a_)), end (*(ctx->a_)));
+        std::sort (begin (ctx->a_), end (ctx->a_));
       }
       break;
     }
@@ -595,8 +595,7 @@ main (int argc, char *argv[])
   osg::ArgumentParser arguments (&argc, argv);
   osgViewer::Viewer viewer (arguments);
 
-  std::vector <int> a (N_ITEMS_TO_SORT);
-  context_t ctx (&a);
+  context_t ctx;
 
   osg::ref_ptr <osg::Group> model = create_model (&ctx);
   viewer.setSceneData (model);
