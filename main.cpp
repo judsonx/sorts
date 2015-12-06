@@ -14,6 +14,8 @@
 
 #define dimof(x) (sizeof (x) / sizeof (*x))
 
+#define N_ITEMS_TO_SORT 256
+
 enum sort_id_t
 {
   SID_UNSPECIFIED,
@@ -27,8 +29,8 @@ enum sort_id_t
 static void
 modify_image (osg::Image *img, std::vector <int> *a)
 {
-  static const int IMAGE_WIDTH = 256;
-  static const int IMAGE_HEIGHT = 256;
+  static const int IMAGE_WIDTH = N_ITEMS_TO_SORT;
+  static const int IMAGE_HEIGHT = N_ITEMS_TO_SORT;
 
   // ABGR.
   static const uint32_t colors[] = {
@@ -53,7 +55,7 @@ modify_image (osg::Image *img, std::vector <int> *a)
       if (i < a->size ())
       {
         if (j <= (*a)[i])
-          color = colors[size_t (0.5 + (((*a)[i] / 256.0) * (dimof (colors) - 1)))];
+          color = colors[size_t (0.5 + ((1.0 * (*a)[i] / N_ITEMS_TO_SORT) * (dimof (colors) - 1)))];
       }
       size_t index = IMAGE_WIDTH * i + j;
       data[index] = color;
@@ -64,8 +66,8 @@ modify_image (osg::Image *img, std::vector <int> *a)
 static osg::Image *
 create_image (std::vector <int> *a)
 {
-  static const int IMAGE_WIDTH = 256;
-  static const int IMAGE_HEIGHT = 256;
+  static const int IMAGE_WIDTH = N_ITEMS_TO_SORT;
+  static const int IMAGE_HEIGHT = N_ITEMS_TO_SORT;
   osg::ref_ptr <osg::Image> img (new osg::Image ());
   img->allocateImage (IMAGE_WIDTH, IMAGE_HEIGHT, 1, GL_RGBA, GL_UNSIGNED_BYTE);
   return img.release ();
@@ -516,7 +518,7 @@ quicksort2 (IT lo, IT hi, context_t *ctx)
 static int
 get_rand ()
 {
-  return (rand () % 256) + 1;
+  return (rand () % N_ITEMS_TO_SORT) + 1;
 }
 
 static void
@@ -537,7 +539,7 @@ sort (context_t *ctx)
       id = ctx->id_;
     }
 
-    std::this_thread::sleep_for (std::chrono::seconds (1));
+    std::this_thread::sleep_for (std::chrono::milliseconds (100));
     switch (id)
     {
     case SID_INSERTION:
@@ -576,7 +578,7 @@ main (int argc, char *argv[])
   osg::ArgumentParser arguments (&argc, argv);
   osgViewer::Viewer viewer (arguments);
 
-  std::vector <int> a (256);
+  std::vector <int> a (N_ITEMS_TO_SORT);
   context_t ctx (&a);
 
   osg::ref_ptr <osg::Group> model = create_model (&ctx);
