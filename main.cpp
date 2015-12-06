@@ -571,6 +571,7 @@ sort (context_t *ctx)
       break;
     case SID_UNSPECIFIED:
     default:
+      std::sort (begin (*(ctx->a_)), end (*(ctx->a_)));
       break;
     }
 
