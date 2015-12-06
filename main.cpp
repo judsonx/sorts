@@ -500,6 +500,8 @@ partition2 (IT lo, IT hi, P p, context_t *ctx)
         return lo;
     } while (!p (*hi));
     std::unique_lock <std::mutex> lock (ctx->m_);
+    if (ctx->reset_)
+      return lo;
     ctx->cv_.wait_for (lock, std::chrono::milliseconds (100), [ctx] {
       return ctx->render_counter_ == ctx->update_counter_;
     });
@@ -580,12 +582,7 @@ sort (context_t *ctx)
     }
 
     std::unique_lock <std::mutex> lock (ctx->m_);
-    while (!ctx->reset_)
-    {
-      ctx->reset_cv_.wait_for (
-        lock, std::chrono::milliseconds (100), [ctx] { return ctx->reset_; }
-      );
-    }
+    ctx->reset_cv_.wait (lock, [ctx] { return ctx->reset_; });
   }
 }
 
