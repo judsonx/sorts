@@ -36,14 +36,22 @@ modify_image (osg::Image *img, std::vector <int> *a)
   static const uint32_t colors[] = {
     0xFFFF0000,
     0xFF800000,
+    0xFF400000,
     0xFFFFFF00,
     0xFF808000,
+    0xFF404000,
     0xFF00FF00,
+    0xFF008000,
+    0xFF004000,
     0xFF00FFFF,
     0xFF008080,
-    0xFF008000,
+    0xFF004040,
+    0xFFFF00FF,
+    0xFF800080,
+    0xFF400040,
     0xFF0000FF,
     0xFF000080,
+    0xFF000040,
   };
 
   uint32_t *data = reinterpret_cast <uint32_t *> (img->data ());
