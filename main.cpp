@@ -6,6 +6,7 @@
 #include <osg/Texture2D>
 #include <osgGA/GUIEventHandler>
 #include <osgViewer/Viewer>
+#include <osgViewer/ViewerEventHandlers>
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
@@ -650,6 +651,7 @@ main (int argc, char *argv[])
 
   osg::ref_ptr <event_handler_t> eh (new event_handler_t (&ctx));
   viewer.addEventHandler (eh);
+  viewer.addEventHandler (new osgViewer::StatsHandler ());
 
   viewer.getCamera ()->setClearColor (osg::Vec4 (0.1f, 0.1f, 0.1f, 1.0f));
 
