@@ -55,7 +55,11 @@ modify_image (osg::Image *img, std::vector <int> *a)
       if (i < a->size ())
       {
         if (j <= (*a)[i])
-          color = colors[size_t (0.5 + ((1.0 * (*a)[i] / N_ITEMS_TO_SORT) * (dimof (colors) - 1)))];
+        {
+          double f = ((*a)[i] - 1.0) / (N_ITEMS_TO_SORT - 1.0) * dimof (colors);
+          size_t ci = std::min (dimof (colors) - 1, static_cast <size_t> (f));
+          color = colors[ci];
+        }
       }
       size_t index = IMAGE_WIDTH * i + j;
       data[index] = color;
