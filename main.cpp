@@ -59,7 +59,7 @@ modify_image (osg::Image *img, std::vector <int> *a)
   {
     for (int j = 0; j < IMAGE_WIDTH; ++j)
     {
-      uint32_t color = 0xFF000000;
+      uint32_t color = 0x00FFFFFF;
       if (i < a->size ())
       {
         if (j <= (*a)[i])
@@ -359,6 +359,7 @@ create_model (context_t *ctx)
   osg::ref_ptr <osg::Geometry> geom (create_geom ());
   osg::StateSet *ss = geom->getOrCreateStateSet ();
   ss->setTextureAttributeAndModes (0, texture, osg::StateAttribute::ON); 
+  ss->setMode (GL_BLEND, osg::StateAttribute::ON);
 
   osg::ref_ptr <osg::Group> out (new osg::Group ());
   out->addChild (geom);
