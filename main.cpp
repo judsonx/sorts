@@ -601,6 +601,8 @@ main (int argc, char *argv[])
   osg::ref_ptr <event_handler_t> eh (new event_handler_t (&ctx));
   viewer.addEventHandler (eh);
 
+  viewer.getCamera ()->setClearColor (osg::Vec4 (0.1f, 0.1f, 0.1f, 1.0f));
+
   std::thread th (sort, &ctx);
 
   viewer.run ();
