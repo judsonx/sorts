@@ -572,7 +572,10 @@ sort (context_t *ctx)
       break;
     case SID_UNSPECIFIED:
     default:
-      std::sort (begin (*(ctx->a_)), end (*(ctx->a_)));
+      {
+        std::unique_lock <std::mutex> lock (ctx->m_);
+        std::sort (begin (*(ctx->a_)), end (*(ctx->a_)));
+      }
       break;
     }
 
