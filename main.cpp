@@ -389,7 +389,7 @@ insertionsort (IT lo, IT hi, context_t *ctx)
       std::unique_lock <std::mutex> lock (ctx->m_);
       if (ctx->reset_)
         return;
-      ctx->cv_.wait_for (lock, std::chrono::milliseconds (10), [ctx] {
+      ctx->cv_.wait_for (lock, std::chrono::milliseconds (100), [ctx] {
         return ctx->render_counter_ == ctx->update_counter_;
       });
       ++ctx->update_counter_;
@@ -411,7 +411,7 @@ bubblesort (IT lo, IT hi, context_t *ctx)
         std::unique_lock <std::mutex> lock (ctx->m_);
         if (ctx->reset_)
           return;
-        ctx->cv_.wait_for (lock, std::chrono::milliseconds (10), [ctx] {
+        ctx->cv_.wait_for (lock, std::chrono::milliseconds (100), [ctx] {
           return ctx->render_counter_ == ctx->update_counter_;
         });
         ++ctx->update_counter_;
@@ -515,7 +515,7 @@ selectionsort (IT lo, IT hi, context_t *ctx)
       std::unique_lock <std::mutex> lock (ctx->m_);
       if (ctx->reset_)
         return;
-      ctx->cv_.wait_for (lock, std::chrono::milliseconds (10), [ctx] {
+      ctx->cv_.wait_for (lock, std::chrono::milliseconds (100), [ctx] {
         return ctx->render_counter_ == ctx->update_counter_;
       });
       ++ctx->update_counter_;
