@@ -296,15 +296,19 @@ create_compass ()
 }
 
 static osg::Geometry *
-create_geom ()
+create_geom (float aspect_ratio)
 {
   // Oriented as though we are looking towards the positive Y-axis where
   // Positive Z is up, and positive X is right.
+
+  float width = 100.0f;
+  float height = width * aspect_ratio;
+
   osg::ref_ptr <osg::Vec3Array> v (new osg::Vec3Array ());
-  v->push_back (osg::Vec3 (-100.0f, 0.0f, -64.0f));
-  v->push_back (osg::Vec3 (100.0f, 0.0f, -64.0f));
-  v->push_back (osg::Vec3 (100.0f, 0.0f, 64.0f));
-  v->push_back (osg::Vec3 (-100.0f, 0.0f, 64.0f));
+  v->push_back (osg::Vec3 (-width, 0.0f, -height));
+  v->push_back (osg::Vec3 (width, 0.0f, -height));
+  v->push_back (osg::Vec3 (width, 0.0f, height));
+  v->push_back (osg::Vec3 (-width, 0.0f, height));
 
   static const osg::Vec4 color (1.0f, 1.0f, 1.0f, 1.0f);
   osg::ref_ptr <osg::Vec4Array> c (new osg::Vec4Array ());
@@ -349,7 +353,7 @@ create_texture ()
 }
 
 static osg::Group *
-create_model (context_t *ctx)
+create_model (context_t *ctx, float aspect_ratio)
 {
   osg::ref_ptr <osg::Image> img (create_image (&ctx->a_));
   osg::ref_ptr <osg::Texture2D> texture (create_texture ());
@@ -358,7 +362,7 @@ create_model (context_t *ctx)
   texture->setDataVariance (osg::Object::DYNAMIC);
   texture->setImage (img);
 
-  osg::ref_ptr <osg::Geometry> geom (create_geom ());
+  osg::ref_ptr <osg::Geometry> geom (create_geom (aspect_ratio));
   osg::StateSet *ss = geom->getOrCreateStateSet ();
   ss->setTextureAttributeAndModes (0, texture, osg::StateAttribute::ON); 
   ss->setMode (GL_BLEND, osg::StateAttribute::ON);
@@ -623,9 +627,25 @@ main (int argc, char *argv[])
   osg::ArgumentParser arguments (&argc, argv);
   osgViewer::Viewer viewer (arguments);
 
+  viewer.realize ();
+
+  osgViewer::ViewerBase::Windows windows;
+  viewer.getWindows (windows);
+
+  int width = 1920;
+  int height = 1080;
+  if (!windows.empty ())
+  {
+    int x, y;
+    windows[0]->getWindowRectangle (x, y, width, height);
+  }
+
+  // Aspect ratio as a fraction.
+  float aspect_ratio = 1.0f * height / width;
+
   context_t ctx;
 
-  osg::ref_ptr <osg::Group> model = create_model (&ctx);
+  osg::ref_ptr <osg::Group> model = create_model (&ctx, aspect_ratio);
   viewer.setSceneData (model);
 
   osg::ref_ptr <event_handler_t> eh (new event_handler_t (&ctx));
