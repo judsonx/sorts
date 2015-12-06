@@ -362,6 +362,7 @@ create_model (context_t *ctx)
   osg::StateSet *ss = geom->getOrCreateStateSet ();
   ss->setTextureAttributeAndModes (0, texture, osg::StateAttribute::ON); 
   ss->setMode (GL_BLEND, osg::StateAttribute::ON);
+  ss->setMode (GL_LIGHTING, osg::StateAttribute::OFF);
 
   osg::ref_ptr <osg::Group> out (new osg::Group ());
   out->addChild (geom);
