@@ -14,7 +14,7 @@
 
 #define dimof(x) (sizeof (x) / sizeof (*x))
 
-#define N_ITEMS_TO_SORT 256
+#define N_ITEMS_TO_SORT 128
 
 enum sort_id_t
 {
@@ -22,6 +22,7 @@ enum sort_id_t
   SID_INSERTION,
   SID_BUBBLE,
   SID_COMB,
+  SID_SHELL,
   SID_SELECTION,
   SID_QUICK
 };
@@ -165,8 +166,9 @@ event_handler_t::handle (
     { osgGA::GUIEventAdapter::KEY_1, SID_INSERTION },
     { osgGA::GUIEventAdapter::KEY_2, SID_BUBBLE },
     { osgGA::GUIEventAdapter::KEY_3, SID_COMB },
-    { osgGA::GUIEventAdapter::KEY_4, SID_SELECTION },
-    { osgGA::GUIEventAdapter::KEY_5, SID_QUICK },
+    { osgGA::GUIEventAdapter::KEY_4, SID_SHELL },
+    { osgGA::GUIEventAdapter::KEY_5, SID_SELECTION },
+    { osgGA::GUIEventAdapter::KEY_6, SID_QUICK },
   };
 
   if (osgGA::GUIEventAdapter::KEYDOWN == ea.getEventType ())
@@ -456,6 +458,44 @@ combsort (IT lo, IT hi, context_t *ctx)
 }
 
 template <typename IT> void
+shellsort (IT lo, IT hi, context_t *ctx)
+{
+  static const int gaps[] = { 32003, 1701, 701, 301, 132, 57, 23, 10, 4, 1 };
+
+  for (auto &gap : gaps)
+  {
+    if (gap >= std::distance (lo, hi))
+      continue;
+
+    for (IT i = lo + gap; i != hi; ++i)
+    {
+      auto current = *i;
+      IT j = i;
+      while (std::distance (lo, j-gap) >= 0 && current < *(j-gap))
+      {
+        std::unique_lock <std::mutex> lock (ctx->m_);
+        if (ctx->reset_)
+          return;
+        ctx->cv_.wait_for (lock, std::chrono::milliseconds (100), [ctx] {
+          return ctx->render_counter_ == ctx->update_counter_;
+        });
+        ++ctx->update_counter_;
+        *j = *(j-gap);
+        j -= gap;
+      }
+      std::unique_lock <std::mutex> lock (ctx->m_);
+      if (ctx->reset_)
+        return;
+      ctx->cv_.wait_for (lock, std::chrono::milliseconds (100), [ctx] {
+        return ctx->render_counter_ == ctx->update_counter_;
+      });
+      ++ctx->update_counter_;
+      *j = current;
+    }
+  }
+}
+
+template <typename IT> void
 selectionsort (IT lo, IT hi, context_t *ctx)
 {
   if (lo == hi)
@@ -565,6 +605,9 @@ sort (context_t *ctx)
       break;
     case SID_COMB:
       combsort (begin (ctx->a_), end (ctx->a_), ctx);
+      break;
+    case SID_SHELL:
+      shellsort (begin (ctx->a_), end (ctx->a_), ctx);
       break;
     case SID_SELECTION:
       selectionsort (begin (ctx->a_), end (ctx->a_), ctx);
