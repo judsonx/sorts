@@ -376,6 +376,14 @@ create_model (context_t *ctx)
   return out.release ();
 }
 
+#define WAIT_FOR_MODEL_UPDATE(ctx, lock) do { \
+  ctx->cv_.wait_for (lock, std::chrono::milliseconds (100), [ctx] { \
+    return ctx->render_counter_ == ctx->update_counter_; \
+  }); \
+  ++ctx->update_counter_; \
+} while (0);
+
+
 template <typename IT> void
 insertionsort (IT lo, IT hi, context_t *ctx)
 {
@@ -389,10 +397,7 @@ insertionsort (IT lo, IT hi, context_t *ctx)
       std::unique_lock <std::mutex> lock (ctx->m_);
       if (ctx->reset_)
         return;
-      ctx->cv_.wait_for (lock, std::chrono::milliseconds (100), [ctx] {
-        return ctx->render_counter_ == ctx->update_counter_;
-      });
-      ++ctx->update_counter_;
+      WAIT_FOR_MODEL_UPDATE (ctx, lock);
       std::iter_swap (j, j-1);
     }
   }
@@ -411,10 +416,7 @@ bubblesort (IT lo, IT hi, context_t *ctx)
         std::unique_lock <std::mutex> lock (ctx->m_);
         if (ctx->reset_)
           return;
-        ctx->cv_.wait_for (lock, std::chrono::milliseconds (100), [ctx] {
-          return ctx->render_counter_ == ctx->update_counter_;
-        });
-        ++ctx->update_counter_;
+        WAIT_FOR_MODEL_UPDATE (ctx, lock);
         std::iter_swap (i, i-1);
         swapped = true;
       }
@@ -443,10 +445,7 @@ combsort (IT lo, IT hi, context_t *ctx)
           std::unique_lock <std::mutex> lock (ctx->m_);
           if (ctx->reset_)
             return;
-          ctx->cv_.wait_for (lock, std::chrono::milliseconds (100), [ctx] {
-            return ctx->render_counter_ == ctx->update_counter_;
-          });
-          ++ctx->update_counter_;
+          WAIT_FOR_MODEL_UPDATE (ctx, lock)
           std::iter_swap (i, i+gap);
           swapped = true;
         }
@@ -476,20 +475,14 @@ shellsort (IT lo, IT hi, context_t *ctx)
         std::unique_lock <std::mutex> lock (ctx->m_);
         if (ctx->reset_)
           return;
-        ctx->cv_.wait_for (lock, std::chrono::milliseconds (100), [ctx] {
-          return ctx->render_counter_ == ctx->update_counter_;
-        });
-        ++ctx->update_counter_;
+        WAIT_FOR_MODEL_UPDATE (ctx, lock)
         *j = *(j-gap);
         j -= gap;
       }
       std::unique_lock <std::mutex> lock (ctx->m_);
       if (ctx->reset_)
         return;
-      ctx->cv_.wait_for (lock, std::chrono::milliseconds (100), [ctx] {
-        return ctx->render_counter_ == ctx->update_counter_;
-      });
-      ++ctx->update_counter_;
+      WAIT_FOR_MODEL_UPDATE (ctx, lock)
       *j = current;
     }
   }
@@ -515,10 +508,7 @@ selectionsort (IT lo, IT hi, context_t *ctx)
       std::unique_lock <std::mutex> lock (ctx->m_);
       if (ctx->reset_)
         return;
-      ctx->cv_.wait_for (lock, std::chrono::milliseconds (100), [ctx] {
-        return ctx->render_counter_ == ctx->update_counter_;
-      });
-      ++ctx->update_counter_;
+      WAIT_FOR_MODEL_UPDATE (ctx, lock)
       std::iter_swap (j, min);
     }
   }
@@ -542,10 +532,7 @@ partition2 (IT lo, IT hi, P p, context_t *ctx)
     std::unique_lock <std::mutex> lock (ctx->m_);
     if (ctx->reset_)
       return lo;
-    ctx->cv_.wait_for (lock, std::chrono::milliseconds (100), [ctx] {
-      return ctx->render_counter_ == ctx->update_counter_;
-    });
-    ++ctx->update_counter_;
+    WAIT_FOR_MODEL_UPDATE (ctx, lock)
     std::iter_swap (lo++, hi);
   }
   return lo;
