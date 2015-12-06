@@ -80,7 +80,6 @@ public:
   context_t (std::vector <int> *a);
 
   std::mutex m_;
-  std::mutex reset_m_;
   std::condition_variable cv_;
   std::condition_variable reset_cv_;
   bool stopped_;
@@ -101,7 +100,6 @@ private:
 
 context_t::context_t (std::vector <int> *a)
 : m_ (),
-  reset_m_ (),
   cv_ (),
   reset_cv_ (),
   stopped_ (false),
@@ -161,7 +159,7 @@ event_handler_t::handle (
   {
     if (osgGA::GUIEventAdapter::KEY_R == ea.getKey ())
     {
-      std::unique_lock <std::mutex> lock (ctx_->reset_m_);
+      std::unique_lock <std::mutex> lock (ctx_->m_);
       ctx_->reset_ = true;
       lock.unlock ();
       ctx_->reset_cv_.notify_one ();
@@ -171,7 +169,7 @@ event_handler_t::handle (
     {
       if (ea.getKey () == m[i].key_)
       {
-        std::unique_lock <std::mutex> lock (ctx_->reset_m_);
+        std::unique_lock <std::mutex> lock (ctx_->m_);
         ctx_->reset_ = true;
         ctx_->id_ = m[i].id_;
         lock.unlock ();
@@ -371,12 +369,9 @@ insertionsort (IT lo, IT hi, context_t *ctx)
   {
     for (IT j = i; j != lo && *j < *(j-1); --j)
     {
-      {
-        std::unique_lock <std::mutex> rlock (ctx->reset_m_);
-        if (ctx->reset_)
-          return;
-      }
       std::unique_lock <std::mutex> lock (ctx->m_);
+      if (ctx->reset_)
+        return;
       ctx->cv_.wait_for (lock, std::chrono::milliseconds (10), [ctx] {
         return ctx->render_counter_ == ctx->update_counter_;
       });
@@ -396,12 +391,9 @@ bubblesort (IT lo, IT hi, context_t *ctx)
     {
       if (*i < *(i-1))
       {
-        {
-          std::unique_lock <std::mutex> rlock (ctx->reset_m_);
-          if (ctx->reset_)
-            return;
-        }
         std::unique_lock <std::mutex> lock (ctx->m_);
+        if (ctx->reset_)
+          return;
         ctx->cv_.wait_for (lock, std::chrono::milliseconds (10), [ctx] {
           return ctx->render_counter_ == ctx->update_counter_;
         });
@@ -431,12 +423,9 @@ combsort (IT lo, IT hi, context_t *ctx)
       {
         if (*(i+gap) < *i)
         {
-          {
-            std::unique_lock <std::mutex> rlock (ctx->reset_m_);
-            if (ctx->reset_)
-              return;
-          }
           std::unique_lock <std::mutex> lock (ctx->m_);
+          if (ctx->reset_)
+            return;
           ctx->cv_.wait_for (lock, std::chrono::milliseconds (100), [ctx] {
             return ctx->render_counter_ == ctx->update_counter_;
           });
@@ -468,12 +457,9 @@ selectionsort (IT lo, IT hi, context_t *ctx)
     }
     if (j != min)
     {
-      {
-        std::unique_lock <std::mutex> rlock (ctx->reset_m_);
-        if (ctx->reset_)
-          return;
-      }
       std::unique_lock <std::mutex> lock (ctx->m_);
+      if (ctx->reset_)
+        return;
       ctx->cv_.wait_for (lock, std::chrono::milliseconds (10), [ctx] {
         return ctx->render_counter_ == ctx->update_counter_;
       });
@@ -515,7 +501,7 @@ quicksort2 (IT lo, IT hi, context_t *ctx)
     return;
 
   {
-    std::unique_lock <std::mutex> rlock (ctx->reset_m_);
+    std::unique_lock <std::mutex> lock (ctx->m_);
     if (ctx->reset_)
       return;
   }
@@ -574,11 +560,11 @@ sort (context_t *ctx)
       break;
     }
 
-    std::unique_lock <std::mutex> rlock (ctx->reset_m_);
+    std::unique_lock <std::mutex> lock (ctx->m_);
     while (!ctx->reset_)
     {
       ctx->reset_cv_.wait_for (
-        rlock, std::chrono::milliseconds (100), [ctx] { return ctx->reset_; }
+        lock, std::chrono::milliseconds (100), [ctx] { return ctx->reset_; }
       );
     }
   }
@@ -606,9 +592,6 @@ main (int argc, char *argv[])
   {
     std::unique_lock <std::mutex> lock (ctx.m_);
     ctx.stopped_ = true;
-  }
-  {
-    std::unique_lock <std::mutex> rlock (ctx.reset_m_);
     ctx.reset_ = true;
   }
   ctx.reset_cv_.notify_one ();
