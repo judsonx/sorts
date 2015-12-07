@@ -379,7 +379,7 @@ create_model (context_t *ctx, float aspect_ratio, float half_width)
 }
 
 #define WAIT_FOR_MODEL_UPDATE(ctx, lock) do { \
-  ctx->cv_.wait_for (lock, std::chrono::milliseconds (100), [ctx] { \
+  ctx->cv_.wait_for (lock, std::chrono::milliseconds (500), [ctx] { \
     return ctx->render_counter_ == ctx->update_counter_; \
   }); \
   ++ctx->update_counter_; \
