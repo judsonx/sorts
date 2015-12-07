@@ -616,6 +616,21 @@ sort (context_t *ctx)
   }
 }
 
+static float
+get_aspect_ratio (osgViewer::Viewer &viewer)
+{
+  osgViewer::ViewerBase::Windows windows;
+  viewer.getWindows (windows);
+  int width = 1920;
+  int height = 1080;
+  if (!windows.empty ())
+  {
+    int x, y;
+    windows[0]->getWindowRectangle (x, y, width, height);
+  }
+  return 1.0f * height / width;
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -627,19 +642,8 @@ main (int argc, char *argv[])
 
   viewer.realize ();
 
-  osgViewer::ViewerBase::Windows windows;
-  viewer.getWindows (windows);
-
-  int width = 1920;
-  int height = 1080;
-  if (!windows.empty ())
-  {
-    int x, y;
-    windows[0]->getWindowRectangle (x, y, width, height);
-  }
-
   // Aspect ratio as a fraction.
-  float aspect_ratio = 1.0f * height / width;
+  float aspect_ratio = get_aspect_ratio (viewer);
 
   context_t ctx;
 
