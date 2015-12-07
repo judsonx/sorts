@@ -1,4 +1,8 @@
+#include <chrono>
+#include <condition_variable>
 #include <cstdio>
+#include <iostream>
+#include <mutex>
 #include <osg/ArgumentParser>
 #include <osg/Array>
 #include <osg/Callback>
@@ -7,15 +11,10 @@
 #include <osgGA/GUIEventHandler>
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
-#include <chrono>
-#include <condition_variable>
-#include <mutex>
 #include <thread>
 #include <vector>
 
 #define dimof(x) (sizeof (x) / sizeof (*x))
-
-#define N_ITEMS_TO_SORT 128
 
 enum sort_id_t
 {
@@ -28,12 +27,28 @@ enum sort_id_t
   SID_QUICK
 };
 
+namespace
+{
+
+struct meta_t
+{
+  int key_;
+  sort_id_t id_;
+  const char *name_;
+} static const g_meta[] = {
+  { osgGA::GUIEventAdapter::KEY_1, SID_INSERTION, "Insertion sort" },
+  { osgGA::GUIEventAdapter::KEY_2, SID_BUBBLE, "Bubble sort" },
+  { osgGA::GUIEventAdapter::KEY_3, SID_COMB, "Comb sort" },
+  { osgGA::GUIEventAdapter::KEY_4, SID_SHELL, "Shell sort" },
+  { osgGA::GUIEventAdapter::KEY_5, SID_SELECTION, "Selection sort" },
+  { osgGA::GUIEventAdapter::KEY_6, SID_QUICK, "Quicksort" },
+};
+
+} // anonymous namespace
+
 static void
 modify_image (osg::Image *img, std::vector <int> *a)
 {
-  static const int IMAGE_WIDTH = N_ITEMS_TO_SORT;
-  static const int IMAGE_HEIGHT = N_ITEMS_TO_SORT;
-
   // ABGR.
   static const uint32_t colors[] = {
     0xFFFF0000,
@@ -56,25 +71,25 @@ modify_image (osg::Image *img, std::vector <int> *a)
     0xFF000040,
   };
 
+  int width = static_cast <int> (a->size ());
   uint32_t *data = reinterpret_cast <uint32_t *> (img->data ());
   for (auto &e : *a)
   {
-    double f = (e - 1.0) / (N_ITEMS_TO_SORT - 1.0) * dimof (colors);
+    double f = (e - 1.0) / (width - 1.0) * dimof (colors);
     size_t ci = std::min (dimof (colors) - 1, static_cast <size_t> (f));
     uint32_t color = colors[ci];
     std::fill (data, data + e, color);
-    std::fill (data + e, data + IMAGE_WIDTH, 0x00FFFFFF);
-    data += IMAGE_WIDTH;
+    std::fill (data + e, data + width, 0x00FFFFFF);
+    data += width;
   }
 }
 
 static osg::Image *
 create_image (std::vector <int> *a)
 {
-  static const int IMAGE_WIDTH = N_ITEMS_TO_SORT;
-  static const int IMAGE_HEIGHT = N_ITEMS_TO_SORT;
+  int image_size = static_cast <int> (a->size ());
   osg::ref_ptr <osg::Image> img (new osg::Image ());
-  img->allocateImage (IMAGE_WIDTH, IMAGE_HEIGHT, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+  img->allocateImage (image_size, image_size, 1, GL_RGBA, GL_UNSIGNED_BYTE);
   return img.release ();
 }
 
@@ -84,7 +99,8 @@ namespace
 class context_t
 {
 public:
-  context_t ();
+  explicit
+  context_t (int sort_count);
 
   std::mutex m_;
   std::condition_variable cv_;
@@ -105,7 +121,7 @@ private:
 
 } // anonymous namespace
 
-context_t::context_t ()
+context_t::context_t (int sort_count)
 : m_ (),
   cv_ (),
   reset_cv_ (),
@@ -113,9 +129,12 @@ context_t::context_t ()
   reset_ (false),
   update_counter_ (0),
   render_counter_ (1),
-  a_ (N_ITEMS_TO_SORT),
+  a_ (),
   id_ (SID_UNSPECIFIED)
 {
+  if (sort_count < 0)
+    throw std::invalid_argument (__FUNCTION__);
+  a_.resize (static_cast <size_t> (sort_count));
 }
 
 namespace
@@ -150,19 +169,6 @@ event_handler_t::handle (
   const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa,
   osg::Object *obj, osg::NodeVisitor *nv )
 {
-  struct map_t
-  {
-    int key_;
-    sort_id_t id_;
-  } static const m[] = {
-    { osgGA::GUIEventAdapter::KEY_1, SID_INSERTION },
-    { osgGA::GUIEventAdapter::KEY_2, SID_BUBBLE },
-    { osgGA::GUIEventAdapter::KEY_3, SID_COMB },
-    { osgGA::GUIEventAdapter::KEY_4, SID_SHELL },
-    { osgGA::GUIEventAdapter::KEY_5, SID_SELECTION },
-    { osgGA::GUIEventAdapter::KEY_6, SID_QUICK },
-  };
-
   if (osgGA::GUIEventAdapter::KEYDOWN == ea.getEventType ())
   {
     if (osgGA::GUIEventAdapter::KEY_R == ea.getKey ())
@@ -173,13 +179,13 @@ event_handler_t::handle (
       ctx_->reset_cv_.notify_one ();
       return true;
     }
-    for (size_t i = 0; i < dimof (m); ++i)
+    for (size_t i = 0; i < dimof (g_meta); ++i)
     {
-      if (ea.getKey () == m[i].key_)
+      if (ea.getKey () == g_meta[i].key_)
       {
         std::unique_lock <std::mutex> lock (ctx_->m_);
         ctx_->reset_ = true;
-        ctx_->id_ = m[i].id_;
+        ctx_->id_ = g_meta[i].id_;
         lock.unlock ();
         ctx_->reset_cv_.notify_one ();
         return true;
@@ -553,12 +559,6 @@ quicksort2 (IT lo, IT hi, context_t *ctx)
   quicksort2 (m2, hi, ctx);
 }
 
-static int
-get_rand ()
-{
-  return (rand () % N_ITEMS_TO_SORT) + 1;
-}
-
 static void
 sort (context_t *ctx)
 {
@@ -571,7 +571,7 @@ sort (context_t *ctx)
       if (ctx->stopped_)
         return;
       for (size_t i = 0; i < ctx->a_.size (); ++i)
-        ctx->a_[i] = get_rand ();
+        ctx->a_[i] = (rand () % ctx->a_.size ()) + 1;
       ctx->reset_ = false;
       ctx->update_counter_ = 0;
       id = ctx->id_;
@@ -627,21 +627,65 @@ get_aspect_ratio (osgViewer::Viewer &viewer)
   return 1.0f * height / width;
 }
 
+static bool
+is_valid_sort_count (int sort_count)
+{
+  for (size_t i = 1; i <= 12; ++i)
+  {
+    if (sort_count == pow (2, i))
+      return true;
+  }
+  return false;
+}
+
+static void
+setup_usage (osg::ApplicationUsage *usage, const std::string &appname)
+{
+  usage->setApplicationName (appname);
+  usage->setDescription (appname + " visualizes sorting algorithms");
+  usage->addCommandLineOption("--count", "How many numbers to sort", "128");
+  for (size_t i = 0; i < dimof (g_meta); ++i)
+    usage->addKeyboardMouseBinding (g_meta[i].key_, g_meta[i].name_);
+
+  usage->addKeyboardMouseBinding (osgGA::GUIEventAdapter::KEY_R, "Restart Sort");
+}
+
 int
 main (int argc, char *argv[])
 {
   static const float HALF_WIDTH = 100.0f;
   static const double HALF_VIEW_WIDTH = HALF_WIDTH * 1.05;
 
-  osg::ArgumentParser arguments (&argc, argv);
-  osgViewer::Viewer viewer (arguments);
+  osg::ArgumentParser args (&argc, argv);
+  setup_usage (args.getApplicationUsage (), args.getApplicationName ());
+
+  osgViewer::Viewer viewer (args);
+
+  unsigned int helpType;
+  if ((helpType = args.readHelpType ()))
+  {
+    args.getApplicationUsage ()->write (std::cout, helpType);
+    return 2;
+  }
+
+  int sort_count = 128;
+  args.read("--count", sort_count);
+  if (!is_valid_sort_count (sort_count))
+    args.reportError ("Invalid count: try powers of 2 up to 4096");
+
+  args.reportRemainingOptionsAsUnrecognized ();
+  if (args.errors ())
+  {
+    args.writeErrorMessages (std::cout);
+    return 2;
+  }
 
   viewer.realize ();
 
   // Aspect ratio as a fraction.
   float aspect_ratio = get_aspect_ratio (viewer);
 
-  context_t ctx;
+  context_t ctx (sort_count);
 
   osg::ref_ptr <osg::Group> model = create_model (
     &ctx, aspect_ratio, HALF_WIDTH
