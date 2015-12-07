@@ -297,19 +297,18 @@ create_compass ()
 }
 
 static osg::Geometry *
-create_geom (float aspect_ratio)
+create_geom (float aspect_ratio, float half_width)
 {
   // Oriented as though we are looking towards the positive Y-axis where
   // Positive Z is up, and positive X is right.
 
-  float width = 100.0f;
-  float height = width * aspect_ratio;
+  float half_height = half_width * aspect_ratio;
 
   osg::ref_ptr <osg::Vec3Array> v (new osg::Vec3Array ());
-  v->push_back (osg::Vec3 (-width, 0.0f, -height));
-  v->push_back (osg::Vec3 (width, 0.0f, -height));
-  v->push_back (osg::Vec3 (width, 0.0f, height));
-  v->push_back (osg::Vec3 (-width, 0.0f, height));
+  v->push_back (osg::Vec3 (-half_width, 0.0f, -half_height));
+  v->push_back (osg::Vec3 (half_width, 0.0f, -half_height));
+  v->push_back (osg::Vec3 (half_width, 0.0f, half_height));
+  v->push_back (osg::Vec3 (-half_width, 0.0f, half_height));
 
   static const osg::Vec4 color (1.0f, 1.0f, 1.0f, 1.0f);
   osg::ref_ptr <osg::Vec4Array> c (new osg::Vec4Array ());
@@ -354,7 +353,7 @@ create_texture ()
 }
 
 static osg::Group *
-create_model (context_t *ctx, float aspect_ratio)
+create_model (context_t *ctx, float aspect_ratio, float half_width)
 {
   osg::ref_ptr <osg::Image> img (create_image (&ctx->a_));
   osg::ref_ptr <osg::Texture2D> texture (create_texture ());
@@ -363,7 +362,7 @@ create_model (context_t *ctx, float aspect_ratio)
   texture->setDataVariance (osg::Object::DYNAMIC);
   texture->setImage (img);
 
-  osg::ref_ptr <osg::Geometry> geom (create_geom (aspect_ratio));
+  osg::ref_ptr <osg::Geometry> geom (create_geom (aspect_ratio, half_width));
   osg::StateSet *ss = geom->getOrCreateStateSet ();
   ss->setTextureAttributeAndModes (0, texture, osg::StateAttribute::ON); 
   ss->setMode (GL_BLEND, osg::StateAttribute::ON);
@@ -625,6 +624,9 @@ sort (context_t *ctx)
 int
 main (int argc, char *argv[])
 {
+  static const float HALF_WIDTH = 100.0f;
+  static const double HALF_VIEW_WIDTH = HALF_WIDTH * 1.05;
+
   osg::ArgumentParser arguments (&argc, argv);
   osgViewer::Viewer viewer (arguments);
 
@@ -646,14 +648,21 @@ main (int argc, char *argv[])
 
   context_t ctx;
 
-  osg::ref_ptr <osg::Group> model = create_model (&ctx, aspect_ratio);
+  osg::ref_ptr <osg::Group> model = create_model (
+    &ctx, aspect_ratio, HALF_WIDTH
+  );
   viewer.setSceneData (model);
 
   osg::ref_ptr <event_handler_t> eh (new event_handler_t (&ctx));
   viewer.addEventHandler (eh);
   viewer.addEventHandler (new osgViewer::StatsHandler ());
 
-  viewer.getCamera ()->setClearColor (osg::Vec4 (0.1f, 0.1f, 0.1f, 1.0f));
+  auto cam = viewer.getCamera ();
+  cam->setClearColor (osg::Vec4 (0.1f, 0.1f, 0.1f, 1.0f));
+  cam->setProjectionMatrixAsOrtho2D (
+    -HALF_VIEW_WIDTH, HALF_VIEW_WIDTH,
+    -HALF_VIEW_WIDTH * aspect_ratio, HALF_VIEW_WIDTH * aspect_ratio
+  );
 
   std::thread th (sort, &ctx);
 
