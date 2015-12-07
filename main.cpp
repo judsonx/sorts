@@ -56,7 +56,6 @@ modify_image (osg::Image *img, std::vector <int> *a)
     0xFF000040,
   };
 
-  timeit_t time;
   uint32_t *data = reinterpret_cast <uint32_t *> (img->data ());
   for (auto &e : *a)
   {
