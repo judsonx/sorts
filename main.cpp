@@ -12,6 +12,7 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+#include <iostream>
 
 #define dimof(x) (sizeof (x) / sizeof (*x))
 
@@ -57,23 +58,17 @@ modify_image (osg::Image *img, std::vector <int> *a)
   };
 
   uint32_t *data = reinterpret_cast <uint32_t *> (img->data ());
-  for (int i = 0; i < IMAGE_HEIGHT; ++i)
+  size_t count = 0;
+  for (auto &e : *a)
   {
-    for (int j = 0; j < IMAGE_WIDTH; ++j)
-    {
-      uint32_t color = 0x00FFFFFF;
-      if (i < a->size ())
-      {
-        if (j <= (*a)[i])
-        {
-          double f = ((*a)[i] - 1.0) / (N_ITEMS_TO_SORT - 1.0) * dimof (colors);
-          size_t ci = std::min (dimof (colors) - 1, static_cast <size_t> (f));
-          color = colors[ci];
-        }
-      }
-      size_t index = IMAGE_WIDTH * i + j;
-      data[index] = color;
-    }
+    double f = (e - 1.0) / (N_ITEMS_TO_SORT - 1.0) * dimof (colors);
+    size_t ci = std::min (dimof (colors) - 1, static_cast <size_t> (f));
+    uint32_t color = colors[ci];
+    int j;
+    for (j = 0; j < e; ++j)
+      data[count++] = color;
+    for (; j < IMAGE_WIDTH; ++j)
+      data[count++] = 0x00FFFFFF;
   }
 }
 
